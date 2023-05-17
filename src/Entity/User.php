@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\UserRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -44,6 +46,24 @@ class User
 
     #[ORM\Column(length: 50)]
     private ?string $font_size_user = null;
+
+    #[ORM\Column(type: Types::TEXT)]
+    private ?string $private_key_user = null;
+
+    #[ORM\Column(type: Types::TEXT)]
+    private ?string $public_key_user = null;
+
+    #[ORM\OneToMany(mappedBy: 'user_customization', targetEntity: Customization::class)]
+    private Collection $customizations_list;
+
+    #[ORM\ManyToMany(targetEntity: Conversation::class, inversedBy: 'users_list')]
+    private Collection $conversations_list;
+
+    public function __construct()
+    {
+        $this->customizations_list = new ArrayCollection();
+        $this->conversations_list = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -166,6 +186,84 @@ class User
     public function setFontSizeUser(string $font_size_user): self
     {
         $this->font_size_user = $font_size_user;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Customization>
+     */
+    public function getCustomizationsList(): Collection
+    {
+        return $this->customizations_list;
+    }
+
+    public function addCustomizationsList(Customization $customizationsList): self
+    {
+        if (!$this->customizations_list->contains($customizationsList)) {
+            $this->customizations_list->add($customizationsList);
+            $customizationsList->setUserCustomization($this);
+        }
+
+        return $this;
+    }
+
+    public function removeCustomizationsList(Customization $customizationsList): self
+    {
+        if ($this->customizations_list->removeElement($customizationsList)) {
+            // set the owning side to null (unless already changed)
+            if ($customizationsList->getUserCustomization() === $this) {
+                $customizationsList->setUserCustomization(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Conversation>
+     */
+    public function getConversationsList(): Collection
+    {
+        return $this->conversations_list;
+    }
+
+    public function addConversationsList(Conversation $conversationsList): self
+    {
+        if (!$this->conversations_list->contains($conversationsList)) {
+            $this->conversations_list->add($conversationsList);
+        }
+
+        return $this;
+    }
+
+    public function removeConversationsList(Conversation $conversationsList): self
+    {
+        $this->conversations_list->removeElement($conversationsList);
+
+        return $this;
+    }
+
+    public function getPrivateKeyUser(): ?string
+    {
+        return $this->private_key_user;
+    }
+
+    public function setPrivateKeyUser(string $private_key_user): self
+    {
+        $this->private_key_user = $private_key_user;
+
+        return $this;
+    }
+
+    public function getPublicKeyUser(): ?string
+    {
+        return $this->public_key_user;
+    }
+
+    public function setPublicKeyUser(string $public_key_user): self
+    {
+        $this->public_key_user = $public_key_user;
 
         return $this;
     }

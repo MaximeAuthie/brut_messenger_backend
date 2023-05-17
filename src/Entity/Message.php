@@ -26,6 +26,14 @@ class Message
     #[ORM\Column]
     private ?bool $status_message = null;
 
+    #[ORM\ManyToOne(inversedBy: 'messages_list')]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?Conversation $conversation_message = null;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?User $user_message = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -75,6 +83,30 @@ class Message
     public function setStatusMessage(bool $status_message): self
     {
         $this->status_message = $status_message;
+
+        return $this;
+    }
+
+    public function getConversationMessage(): ?Conversation
+    {
+        return $this->conversation_message;
+    }
+
+    public function setConversationMessage(?Conversation $conversation_message): self
+    {
+        $this->conversation_message = $conversation_message;
+
+        return $this;
+    }
+
+    public function getUserMessage(): ?User
+    {
+        return $this->user_message;
+    }
+
+    public function setUserMessage(?User $user_message): self
+    {
+        $this->user_message = $user_message;
 
         return $this;
     }

@@ -25,6 +25,14 @@ class Customization
     #[ORM\Column]
     private ?bool $user_status_customization = null;
 
+    #[ORM\ManyToOne(inversedBy: 'customizations_list')]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?User $user_customization = null;
+
+    #[ORM\ManyToOne(inversedBy: 'Customizations_list')]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?Conversation $conversation_customization = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -74,6 +82,30 @@ class Customization
     public function setUserStatusCustomization(bool $user_status_customization): self
     {
         $this->user_status_customization = $user_status_customization;
+
+        return $this;
+    }
+
+    public function getUserCustomization(): ?User
+    {
+        return $this->user_customization;
+    }
+
+    public function setUserCustomization(?User $user_customization): self
+    {
+        $this->user_customization = $user_customization;
+
+        return $this;
+    }
+
+    public function getConversationCustomization(): ?Conversation
+    {
+        return $this->conversation_customization;
+    }
+
+    public function setConversationCustomization(?Conversation $conversation_customization): self
+    {
+        $this->conversation_customization = $conversation_customization;
 
         return $this;
     }
