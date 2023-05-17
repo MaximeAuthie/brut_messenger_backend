@@ -12,6 +12,11 @@
         {% block javascripts %}
             {{ encore_entry_script_tags('app') }}
         {% endblock %}
+
+        {# Liaison avec le fichier CSS Bootstrap #}
+        {% block stylesheets %}
+            <link rel="stylesheet" href="{{ asset('asset/css/bootstrap.min.css') }}">
+        {% endblock %}
     </head>
     <body>
         {% block body %}{% endblock %}
