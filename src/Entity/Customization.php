@@ -33,6 +33,9 @@ class Customization
     #[ORM\JoinColumn(nullable: false)]
     private ?Conversation $conversation_customization = null;
 
+    #[ORM\Column]
+    private ?bool $is_admin_customization = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -106,6 +109,18 @@ class Customization
     public function setConversationCustomization(?Conversation $conversation_customization): self
     {
         $this->conversation_customization = $conversation_customization;
+
+        return $this;
+    }
+
+    public function isIsAdminCustomization(): ?bool
+    {
+        return $this->is_admin_customization;
+    }
+
+    public function setIsAdminCustomization(bool $is_admin_customization): self
+    {
+        $this->is_admin_customization = $is_admin_customization;
 
         return $this;
     }
