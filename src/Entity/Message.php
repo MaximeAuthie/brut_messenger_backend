@@ -14,9 +14,6 @@ class Message
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column]
-    private ?int $id_message = null;
-
     #[ORM\Column(type: Types::TEXT)]
     private ?string $content_message = null;
 
@@ -37,18 +34,6 @@ class Message
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    public function getIdMessage(): ?int
-    {
-        return $this->id_message;
-    }
-
-    public function setIdMessage(int $id_message): self
-    {
-        $this->id_message = $id_message;
-
-        return $this;
     }
 
     public function getContentMessage(): ?string
@@ -110,4 +95,5 @@ class Message
 
         return $this;
     }
+
 }

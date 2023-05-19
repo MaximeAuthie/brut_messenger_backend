@@ -14,9 +14,6 @@ class PublicKeys
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column]
-    private ?int $id_publickeys = null;
-
     #[ORM\Column(type: Types::TEXT)]
     private ?string $key_publickeys = null;
 
@@ -31,18 +28,6 @@ class PublicKeys
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    public function getIdPublickeys(): ?int
-    {
-        return $this->id_publickeys;
-    }
-
-    public function setIdPublickeys(int $id_publickeys): self
-    {
-        $this->id_publickeys = $id_publickeys;
-
-        return $this;
     }
 
     public function getKeyPublickeys(): ?string
@@ -80,4 +65,5 @@ class PublicKeys
 
         return $this;
     }
+
 }

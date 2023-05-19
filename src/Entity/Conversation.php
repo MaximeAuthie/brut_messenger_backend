@@ -15,9 +15,6 @@ class Conversation
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column]
-    private ?int $id_conversation = null;
-
     #[ORM\Column(length: 50)]
     private ?string $name_conversation = null;
 
@@ -33,9 +30,6 @@ class Conversation
     #[ORM\Column]
     private ?bool $status_conversation = null;
 
-    #[ORM\ManyToMany(targetEntity: User::class, mappedBy: 'conversations_list')]
-    private Collection $users_list;
-
     #[ORM\OneToMany(mappedBy: 'conversation_customization', targetEntity: Customization::class)]
     private Collection $Customizations_list;
 
@@ -45,29 +39,20 @@ class Conversation
     #[ORM\OneToMany(mappedBy: 'conversation_public_keys', targetEntity: PublicKeys::class)]
     private Collection $public_keys_list;
 
+    #[ORM\ManyToMany(targetEntity: User::class, mappedBy: 'conversations_list')]
+    private Collection $users_list;
+
     public function __construct()
     {
-        $this->users_list = new ArrayCollection();
         $this->Customizations_list = new ArrayCollection();
         $this->messages_list = new ArrayCollection();
         $this->public_keys_list = new ArrayCollection();
+        $this->users_list = new ArrayCollection();
     }
 
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    public function getIdConversation(): ?int
-    {
-        return $this->id_conversation;
-    }
-
-    public function setIdConversation(int $id_conversation): self
-    {
-        $this->id_conversation = $id_conversation;
-
-        return $this;
     }
 
     public function getNameConversation(): ?string
@@ -126,33 +111,6 @@ class Conversation
     public function setStatusConversation(bool $status_conversation): self
     {
         $this->status_conversation = $status_conversation;
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, User>
-     */
-    public function getUsersList(): Collection
-    {
-        return $this->users_list;
-    }
-
-    public function addUsersList(User $usersList): self
-    {
-        if (!$this->users_list->contains($usersList)) {
-            $this->users_list->add($usersList);
-            $usersList->addConversationsList($this);
-        }
-
-        return $this;
-    }
-
-    public function removeUsersList(User $usersList): self
-    {
-        if ($this->users_list->removeElement($usersList)) {
-            $usersList->removeConversationsList($this);
-        }
 
         return $this;
     }
@@ -242,6 +200,33 @@ class Conversation
             if ($publicKeysList->getConversationPublicKeys() === $this) {
                 $publicKeysList->setConversationPublicKeys(null);
             }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    public function getUsersList(): Collection
+    {
+        return $this->users_list;
+    }
+
+    public function addUsersList(User $usersList): self
+    {
+        if (!$this->users_list->contains($usersList)) {
+            $this->users_list->add($usersList);
+            $usersList->addConversationsList($this);
+        }
+
+        return $this;
+    }
+
+    public function removeUsersList(User $usersList): self
+    {
+        if ($this->users_list->removeElement($usersList)) {
+            $usersList->removeConversationsList($this);
         }
 
         return $this;

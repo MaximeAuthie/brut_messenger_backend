@@ -13,9 +13,6 @@ class Customization
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column]
-    private ?int $id_customization = null;
-
     #[ORM\Column(length: 50)]
     private ?string $message_color_customization = null;
 
@@ -25,10 +22,6 @@ class Customization
     #[ORM\Column]
     private ?bool $user_status_customization = null;
 
-    #[ORM\ManyToOne(inversedBy: 'customizations_list')]
-    #[ORM\JoinColumn(nullable: false)]
-    private ?User $user_customization = null;
-
     #[ORM\ManyToOne(inversedBy: 'Customizations_list')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Conversation $conversation_customization = null;
@@ -36,21 +29,13 @@ class Customization
     #[ORM\Column]
     private ?bool $is_admin_customization = null;
 
+    #[ORM\ManyToOne(inversedBy: 'customizations_list')]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?User $user_customization = null;
+
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    public function getIdCustomization(): ?int
-    {
-        return $this->id_customization;
-    }
-
-    public function setIdCustomization(int $id_customization): self
-    {
-        $this->id_customization = $id_customization;
-
-        return $this;
     }
 
     public function getMessageColorCustomization(): ?string
@@ -89,18 +74,6 @@ class Customization
         return $this;
     }
 
-    public function getUserCustomization(): ?User
-    {
-        return $this->user_customization;
-    }
-
-    public function setUserCustomization(?User $user_customization): self
-    {
-        $this->user_customization = $user_customization;
-
-        return $this;
-    }
-
     public function getConversationCustomization(): ?Conversation
     {
         return $this->conversation_customization;
@@ -121,6 +94,18 @@ class Customization
     public function setIsAdminCustomization(bool $is_admin_customization): self
     {
         $this->is_admin_customization = $is_admin_customization;
+
+        return $this;
+    }
+
+    public function getUserCustomization(): ?User
+    {
+        return $this->user_customization;
+    }
+
+    public function setUserCustomization(?User $user_customization): self
+    {
+        $this->user_customization = $user_customization;
 
         return $this;
     }

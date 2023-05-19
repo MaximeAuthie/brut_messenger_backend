@@ -7,62 +7,87 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
-#[ORM\Table(name: '`user`')]
-class User
+class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups('user:addUser')]
     private ?int $id = null;
 
+    #[ORM\Column(length: 180, unique: true)]
+    #[Groups('user:addUser')]
+    private ?string $email = null;
+
     #[ORM\Column]
-    private ?int $id_user = null;
+    #[Groups('user:addUser')]
+    private array $roles = [];
+
+    /**
+     * @var string The hashed password
+     */
+    #[ORM\Column]
+    #[Groups('user:addUser')]
+    private ?string $password = null;
 
     #[ORM\Column(length: 50)]
+    #[Groups('user:addUser')]
     private ?string $first_name_user = null;
 
     #[ORM\Column(length: 50)]
+    #[Groups('user:addUser')]
     private ?string $last_name_user = null;
 
     #[ORM\Column(length: 50)]
+    #[Groups('user:addUser')]
     private ?string $nickname_user = null;
 
-    #[ORM\Column(length: 100)]
-    private ?string $email_user = null;
-
     #[ORM\Column(type: Types::DATE_MUTABLE)]
+    #[Groups('user:addUser')]
     private ?\DateTimeInterface $birthday_user = null;
 
     #[ORM\Column(length: 100)]
-    private ?string $password_user = null;
-
-    #[ORM\Column(length: 100)]
-    private ?string $url_avatar_user = null;
+    #[Groups('user:addUser')]
+    private ?string $avatar_url_user = null;
 
     #[ORM\Column]
+    #[Groups('user:addUser')]
     private ?bool $status_user = null;
 
     #[ORM\Column(length: 50)]
+    #[Groups('user:addUser')]
     private ?string $font_size_user = null;
 
     #[ORM\Column(type: Types::TEXT)]
-    private ?string $private_key_user = null;
-
-    #[ORM\Column(type: Types::TEXT)]
+    #[Groups('user:addUser')]
     private ?string $public_key_user = null;
 
+    #[ORM\Column(type: Types::TEXT)]
+    #[Groups('user:addUser')]
+    private ?string $private_key_user = null;
+
     #[ORM\OneToMany(mappedBy: 'user_customization', targetEntity: Customization::class)]
+    //! impossible d'ajouter un groupe pour l'API User sur une relation OneToMany
     private Collection $customizations_list;
 
     #[ORM\ManyToMany(targetEntity: Conversation::class, inversedBy: 'users_list')]
+    #[Groups('user:addUser')]
     private Collection $conversations_list;
+
+    #[ORM\ManyToMany(targetEntity: self::class, inversedBy: 'users_list')]
+    #[Groups('user:addUser')]
+    private Collection $users_list;
 
     public function __construct()
     {
         $this->customizations_list = new ArrayCollection();
         $this->conversations_list = new ArrayCollection();
+        $this->users_list = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -70,16 +95,69 @@ class User
         return $this->id;
     }
 
-    public function getIdUser(): ?int
+    public function getEmail(): ?string
     {
-        return $this->id_user;
+        return $this->email;
     }
 
-    public function setIdUser(int $id_user): self
+    public function setEmail(string $email): self
     {
-        $this->id_user = $id_user;
+        $this->email = $email;
 
         return $this;
+    }
+
+    /**
+     * A visual identifier that represents this user.
+     *
+     * @see UserInterface
+     */
+    public function getUserIdentifier(): string
+    {
+        return (string) $this->email;
+    }
+
+    /**
+     * @see UserInterface
+     */
+    public function getRoles(): array
+    {
+        $roles = $this->roles;
+        // guarantee every user at least has ROLE_USER
+        $roles[] = 'ROLE_USER';
+
+        return array_unique($roles);
+    }
+
+    public function setRoles(array $roles): self
+    {
+        $this->roles = $roles;
+
+        return $this;
+    }
+
+    /**
+     * @see PasswordAuthenticatedUserInterface
+     */
+    public function getPassword(): string
+    {
+        return $this->password;
+    }
+
+    public function setPassword(string $password): self
+    {
+        $this->password = $password;
+
+        return $this;
+    }
+
+    /**
+     * @see UserInterface
+     */
+    public function eraseCredentials()
+    {
+        // If you store any temporary, sensitive data on the user, clear it here
+        // $this->plainPassword = null;
     }
 
     public function getFirstNameUser(): ?string
@@ -118,18 +196,6 @@ class User
         return $this;
     }
 
-    public function getEmailUser(): ?string
-    {
-        return $this->email_user;
-    }
-
-    public function setEmailUser(string $email_user): self
-    {
-        $this->email_user = $email_user;
-
-        return $this;
-    }
-
     public function getBirthdayUser(): ?\DateTimeInterface
     {
         return $this->birthday_user;
@@ -142,26 +208,14 @@ class User
         return $this;
     }
 
-    public function getPasswordUser(): ?string
+    public function getAvatarUrlUser(): ?string
     {
-        return $this->password_user;
+        return $this->avatar_url_user;
     }
 
-    public function setPasswordUser(string $password_user): self
+    public function setAvatarUrlUser(string $avatar_url_user): self
     {
-        $this->password_user = $password_user;
-
-        return $this;
-    }
-
-    public function getUrlAvatarUser(): ?string
-    {
-        return $this->url_avatar_user;
-    }
-
-    public function setUrlAvatarUser(string $url_avatar_user): self
-    {
-        $this->url_avatar_user = $url_avatar_user;
+        $this->avatar_url_user = $avatar_url_user;
 
         return $this;
     }
@@ -186,6 +240,30 @@ class User
     public function setFontSizeUser(string $font_size_user): self
     {
         $this->font_size_user = $font_size_user;
+
+        return $this;
+    }
+
+    public function getPublicKeyUser(): ?string
+    {
+        return $this->public_key_user;
+    }
+
+    public function setPublicKeyUser(string $public_key_user): self
+    {
+        $this->public_key_user = $public_key_user;
+
+        return $this;
+    }
+
+    public function getPrivateKeyUser(): ?string
+    {
+        return $this->private_key_user;
+    }
+
+    public function setPrivateKeyUser(string $private_key_user): self
+    {
+        $this->private_key_user = $private_key_user;
 
         return $this;
     }
@@ -244,27 +322,28 @@ class User
         return $this;
     }
 
-    public function getPrivateKeyUser(): ?string
+    /**
+     * @return Collection<int, self>
+     */
+    public function getUsersList(): Collection
     {
-        return $this->private_key_user;
+        return $this->users_list;
     }
 
-    public function setPrivateKeyUser(string $private_key_user): self
+    public function addUsersList(self $usersList): self
     {
-        $this->private_key_user = $private_key_user;
+        if (!$this->users_list->contains($usersList)) {
+            $this->users_list->add($usersList);
+        }
 
         return $this;
     }
 
-    public function getPublicKeyUser(): ?string
+    public function removeUsersList(self $usersList): self
     {
-        return $this->public_key_user;
-    }
-
-    public function setPublicKeyUser(string $public_key_user): self
-    {
-        $this->public_key_user = $public_key_user;
+        $this->users_list->removeElement($usersList);
 
         return $this;
     }
+
 }
