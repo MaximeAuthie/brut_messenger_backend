@@ -17,58 +17,54 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups('user:addUser')]
+    #[Groups('user:getUserById')]
     private ?int $id = null;
 
     #[ORM\Column(length: 180, unique: true)]
-    #[Groups('user:addUser')]
+    #[Groups('user:getUserById')]
     private ?string $email = null;
 
     #[ORM\Column]
-    #[Groups('user:addUser')]
+    #[Groups('user:getUserById')]
     private array $roles = [];
 
     /**
      * @var string The hashed password
      */
     #[ORM\Column]
-    #[Groups('user:addUser')]
+    #[Groups('user:getUserById')]
     private ?string $password = null;
 
     #[ORM\Column(length: 50)]
-    #[Groups('user:addUser')]
+    #[Groups('user:getUserById')]
     private ?string $first_name_user = null;
 
     #[ORM\Column(length: 50)]
-    #[Groups('user:addUser')]
+    #[Groups('user:getUserById')]
     private ?string $last_name_user = null;
 
     #[ORM\Column(length: 50)]
-    #[Groups('user:addUser')]
+    #[Groups('user:getUserById')]
     private ?string $nickname_user = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE)]
-    #[Groups('user:addUser')]
+    #[Groups('user:getUserById')]
     private ?\DateTimeInterface $birthday_user = null;
 
     #[ORM\Column(length: 100)]
-    #[Groups('user:addUser')]
+    #[Groups('user:getUserById')]
     private ?string $avatar_url_user = null;
 
     #[ORM\Column]
-    #[Groups('user:addUser')]
     private ?bool $status_user = null;
 
     #[ORM\Column(length: 50)]
-    #[Groups('user:addUser')]
     private ?string $font_size_user = null;
 
     #[ORM\Column(type: Types::TEXT)]
-    #[Groups('user:addUser')]
     private ?string $public_key_user = null;
 
     #[ORM\Column(type: Types::TEXT)]
-    #[Groups('user:addUser')]
     private ?string $private_key_user = null;
 
     #[ORM\OneToMany(mappedBy: 'user_customization', targetEntity: Customization::class)]
@@ -76,11 +72,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $customizations_list;
 
     #[ORM\ManyToMany(targetEntity: Conversation::class, inversedBy: 'users_list')]
-    #[Groups('user:addUser')]
     private Collection $conversations_list;
 
     #[ORM\ManyToMany(targetEntity: self::class, inversedBy: 'users_list')]
-    #[Groups('user:addUser')]
     private Collection $users_list;
 
     public function __construct()
