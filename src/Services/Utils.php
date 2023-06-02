@@ -1,5 +1,6 @@
 <?php
-    namespace App\Service;
+    namespace App\Services;
+    
     class Utils {
         /**
          * @param string $value
