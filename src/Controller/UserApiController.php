@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Serializer\SerializerInterface;
 use App\Entity\User;
 use App\Services\Utils;
+use App\Services\Messaging;
 use App\Services\ApiAuthentification;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
@@ -65,7 +66,7 @@ class UserApiController extends AbstractController {
             //? Vérifier si $user est vide (s'il n'existe pas dans la BDD)
             if (empty($user)) {
                 return $this->json(
-                    ['Error' => 'This user does not exist'],
+                    ['Error' => 'This user does not exist in the database.'],
                     206, 
                     ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
                     []
@@ -93,7 +94,7 @@ class UserApiController extends AbstractController {
 
     //! API pour ajouter un utilisateur (inscription)
     #[ROUTE('api/user/add', name:"app_api_user_add", methods: 'POST')] //! Passer la classe Password pour le hash dans les param
-    public function addUser(UserRepository $userRepository, Request $request, SerializerInterface $serializerInterface, EntityManagerInterface $entityManagerInterface):Response {
+    public function addUser(UserRepository $userRepository, Request $request, SerializerInterface $serializerInterface, EntityManagerInterface $entityManagerInterface, Messaging $messaging):Response {
         try {
             //? Récupérer le contenu de la requête en provenance du front
             $json = $request->getContent();
@@ -101,7 +102,7 @@ class UserApiController extends AbstractController {
             //? Vérifier que le body de la requête en provenance du front n'est pas vide
             if (!$json) {
                 return $this->json(
-                    ['Erreur' => 'Le json est vide ou n\'esiste pas.'],
+                    ['Error' => 'The json is empty or does not exist.'],
                     400,
                     ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'], 
                     []
@@ -114,7 +115,7 @@ class UserApiController extends AbstractController {
             //? Vérifier si la date est valide
             if (!Utils::isValidDate($data['birthday'])) {
                 return $this->json(
-                    ['Erreur' => 'L\a date '.$data['birthday'].' n\'est pas valide.'],
+                    ['Error' => 'The date '.$data['birthday'].' is not a valid date.'],
                     400,
                     ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
                     [] );
@@ -123,7 +124,7 @@ class UserApiController extends AbstractController {
             //? Vérifier si le format de l'adresse mail est valide
             if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
                 return $this->json(
-                    ['Erreur' => 'L\'adresse mail '.$data['email'].' n\'est pas valide.'],
+                    ['Error' => 'The email adress '.$data['email'].' is not a valid email adress.'],
                     400,
                     ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
                     [] );
@@ -135,7 +136,7 @@ class UserApiController extends AbstractController {
             if ($recup) {
                 //? Renvoyer une erreur
                 return $this->json(
-                    ['Erreur' => 'L\'adresse mail '.$data['email'].' est déjà utilisée par un compte utilisateur.'],
+                    ['Error' => 'The email adress '.$data['email'].' is already used by an other user account.'],
                     206,
                     ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'], 
                     [] 
@@ -172,9 +173,22 @@ class UserApiController extends AbstractController {
             $entityManagerInterface->persist($user);
             $entityManagerInterface->flush();
 
+            //? Récupérer les variables d'authentification du webmail
+            $mailLogin = $this->getParameter('mailaccount');
+            $mailPassword = $this->getParameter('mailpassword');
+
+            //? Définition des variables pour utiliser la méthode sendEmail() de la classe Messenging
+            $mailObject = 'Activation de votre compte BRUT MESSENGER';
+            $mailContent =  '<p>Bienvenue dans la communauté BRUT MESSENGER '.$user->getFirstNameUser().' ! </p>'.
+                        '<p>Pour activer ton compte et commencer à utiliser l\'application BRUT MESSENGER sur ton mobile, cliques sur le lien ci-dessous:</p>'.
+                        '<a href = "https://127.0.0.1:8000/api/user/activate'.$user->getId().'">Lien d\'activation</a>';
+
+            //? Executer la méthode sendMail() de la classe Messenging
+            $mailStatus = $messaging->sendEmail($mailLogin, $mailPassword, $user->getEmail(), $mailObject, $mailContent);
+
             //? Retourner un json pour avertir que l'enregistrement a réussit
             return $this->json(
-                ['erreur'=> 'Le compte '.$user->getEmail().' à bien été ajouté à la BDD.'],
+                ['Success'=> 'The account '.$user->getEmail().' has been added to the database.'],
                 200, 
                 ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'],
                 []
@@ -184,7 +198,7 @@ class UserApiController extends AbstractController {
 
             //? Retourner un json pour détailler l'erreur rencontrée
             return $this->json(
-                ['erreur'=> 'Etat du json : '.$error->getMessage()],
+                ['Error'=> 'Json state : '.$error->getMessage()],
                 400, 
                 ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'],
                 []
@@ -203,7 +217,7 @@ class UserApiController extends AbstractController {
             //? On vérifie que le json n'est pas vide
             if (!$json) {
                 return $this->json(
-                    ['Error' => 'Le json est vide ou n\'existe pas.'],
+                    ['Error' => 'The json is empty or does not exist.'],
                     400,
                     ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
                     []
@@ -264,6 +278,54 @@ class UserApiController extends AbstractController {
         } catch (\Exception $error){
 
            //? En cas d'erreur, on lève l'exception et on retourne le message d'erreur lié
+            return $this->json(
+                ['Error' =>$error->getMessage()],
+                400,
+                ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
+                []
+            );
+        }
+    }
+
+    //! API pour activer le compte utilisateur quand il clique sur le lien dans le mail d'activation
+    #[ROUTE('api/user/activate/{id}', name:"app_api_user_activate", methods: 'GET')]
+    public function activateUser($id, UserRepository $userRepository, EntityManagerInterface $entityManagerInterface) {
+
+        try {
+
+            //? Récupérer l'id de l'utilisateur
+            $user = $userRepository->find($id);
+
+            //? Vérifier si l'utilisateur existe
+            if (!$user) {
+                return $this->json(
+                    ['Error' => 'This user does not exist in the database.'],
+                    400,
+                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
+                    []
+                );
+            }
+
+            //? Vérifier si l'utilisateur n'est pas déjà activé
+            if ($user->isStatusUser()) {
+                return $this->json(
+                    ['Error' => 'This user account is already activated.'],
+                    400,
+                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
+                    []
+                );
+            }
+
+            //? Setter le statut de l'utilisateur à true
+            $user->setStatusUser(true);
+
+            //? Persister et flush les données
+            $entityManagerInterface->persist($user);
+            $entityManagerInterface->flush();
+
+        } catch (\Exception $error) {
+
+            //? En cas d'erreur, on lève l'exception et on retourne un json d'erreur
             return $this->json(
                 ['Error' =>$error->getMessage()],
                 400,
