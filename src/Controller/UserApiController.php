@@ -207,6 +207,7 @@ class UserApiController extends AbstractController {
                 400, 
                 ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'],
                 []
+                
             );
         }
     }
