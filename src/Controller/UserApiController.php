@@ -94,7 +94,7 @@ class UserApiController extends AbstractController {
 
     //! API pour ajouter un utilisateur (inscription)
     #[ROUTE('api/user/add', name:"app_api_user_add", methods: 'POST')] //! Passer la classe Password pour le hash dans les param
-    public function addUser(UserRepository $userRepository, Request $request, SerializerInterface $serializerInterface, EntityManagerInterface $entityManagerInterface, Messaging $messaging):Response {
+    public function addUser(UserRepository $userRepository, Request $request, SerializerInterface $serializerInterface, EntityManagerInterface $entityManagerInterface, Messaging $messaging, ApiAuthentification $apiAuthentification):Response {
         try {
             //? Récupérer le contenu de la requête en provenance du front
             $json = $request->getContent();
@@ -164,7 +164,7 @@ class UserApiController extends AbstractController {
             $user->setNicknameUser($nickname);
             $user->setRoles(['USER']);
             $user->setAvatarUrlUser('./public/asset/images/default-avatar.svg');
-            $user->setStatusUser('true');
+            $user->setStatusUser(false);
             $user->setFontSizeUser('medium');
             $user->setPublicKeyUser('1111111111');
             $user->setPrivateKeyUser('2222222222');
@@ -174,18 +174,23 @@ class UserApiController extends AbstractController {
             $entityManagerInterface->flush();
 
             //? Récupérer les variables d'authentification du webmail
-            $mailLogin = $this->getParameter('mailaccount');
-            $mailPassword = $this->getParameter('mailpassword');
+            $mailLogin      = $this->getParameter('mailaccount');
+            $mailPassword   = $this->getParameter('mailpassword');
+
+            //? Récupérer la clé secrète pour générer un token
+            $secretkey      = $this->getParameter('token');
+            $token          = $apiAuthentification->genNewToken($user->getEmail(), $secretkey, $userRepository, 10);
 
             //? Définition des variables pour utiliser la méthode sendEmail() de la classe Messenging
-            $mailObject = 'Activation de votre compte BRUT MESSENGER';
-            $mailContent =  '<p>Bienvenue dans la communauté BRUT MESSENGER '.$user->getFirstNameUser().' ! </p>'.
-                        '<p>Pour activer ton compte et commencer à utiliser l\'application BRUT MESSENGER sur ton mobile, cliques sur le lien ci-dessous:</p>'.
-                        '<a href = "https://127.0.0.1:8000/api/user/activate'.$user->getId().'">Lien d\'activation</a>';
+            $mailObject     = 'Activation de votre compte BRUT MESSENGER';
+            $mailContent    = '<p>Bienvenue dans la communauté BRUT MESSENGER '.$user->getFirstNameUser().' ! </p>'.
+                              '<p>Pour activer ton compte et commencer à utiliser l\'application BRUT MESSENGER sur ton mobile, cliques sur le lien ci-dessous:</p>'.
+                              '<a href = "https://127.0.0.1:8000/api/user/activate/'.$user->getId().'/'.$token.'">Lien d\'activation</a>';
+            
 
             //? Executer la méthode sendMail() de la classe Messenging
             $mailStatus = $messaging->sendEmail($mailLogin, $mailPassword, $user->getEmail(), $mailObject, $mailContent);
-
+            
             //? Retourner un json pour avertir que l'enregistrement a réussit
             return $this->json(
                 ['Success'=> 'The account '.$user->getEmail().' has been added to the database.'],
@@ -258,7 +263,7 @@ class UserApiController extends AbstractController {
             if ($apiAuthentification->authentification($userPasswordHasherInterface ,$userRepository, $email, $password )) {
 
                 //? Si la méthode d'authentification retourne true, on génère un token avec la méthode genNewToken de ApiAuthentification
-                $token = $apiAuthentification->genNewToken($email, $secretkey, $userRepository);
+                $token = $apiAuthentification->genNewToken($email, $secretkey, $userRepository, 1);
 
                 return $this->json(
                     $token, 
@@ -288,8 +293,8 @@ class UserApiController extends AbstractController {
     }
 
     //! API pour activer le compte utilisateur quand il clique sur le lien dans le mail d'activation
-    #[ROUTE('api/user/activate/{id}', name:"app_api_user_activate", methods: 'GET')]
-    public function activateUser($id, UserRepository $userRepository, EntityManagerInterface $entityManagerInterface) {
+    #[ROUTE('api/user/activate/{id}/{token}', name:"app_api_user_activate", methods: 'GET')]
+    public function activateUser(int $id, string $token, UserRepository $userRepository, EntityManagerInterface $entityManagerInterface, ApiAuthentification $apiAuthentification, Messaging $messaging):Response {
 
         try {
 
@@ -316,12 +321,65 @@ class UserApiController extends AbstractController {
                 );
             }
 
+            //? Récupérer la secret key pour générer un token
+            $secretkey = $this->getParameter('token');
+
+            //? Appeller la méthode verifyToken() de ApiAuthentification
+            $checkToken = $apiAuthentification->verifyToken($token, $secretkey);
+       
+            //? On gère le cas du token valide mais expiré pour renvoyer un mail
+            if ($checkToken === "Expired token") {
+
+                //? Récupérer les variables d'authentification du webmail
+                $mailLogin      = $this->getParameter('mailaccount');
+                $mailPassword   = $this->getParameter('mailpassword');
+
+                //? Récupérer la clé secrète pour générer un token
+                $secretkey      = $this->getParameter('token');
+                $newToken       = $apiAuthentification->genNewToken($user->getEmail(), $secretkey, $userRepository, 10);
+
+                //? Définition des variables pour utiliser la méthode sendEmail() de la classe Messenging
+                $mailObject     = 'Activation de votre compte BRUT MESSENGER';
+                $mailContent    = '<p>Bienvenue dans la communauté BRUT MESSENGER '.$user->getFirstNameUser().' ! </p>'.
+                                '<p>Pour activer ton compte et commencer à utiliser l\'application BRUT MESSENGER sur ton mobile, cliques sur le lien ci-dessous:</p>'.
+                                '<a href = "https://127.0.0.1:8000/api/user/activate/'.$user->getId().'/'.$newToken.'">Lien d\'activation</a>';
+               
+
+                //? Executer la méthode sendMail() de la classe Messenging
+                $mailStatus = $messaging->sendEmail($mailLogin, $mailPassword, $user->getEmail(), $mailObject, $mailContent);
+            
+                //? Retourner un json pour avertir que l'enregistrement a réussit
+                return $this->json(
+                    ['Error'=> 'Expirated token : a new confirmation email has been send.'],
+                    400, 
+                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'],
+                    []
+                );
+            }
+            //? Si la méthode verifyToken() retourne autre chose que true (une erreur)
+            if ($checkToken !== true) {
+                dd($checkToken);
+                return $this->json(
+                    ['Error' => $checkToken],
+                    400, 
+                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
+                    []
+                );  
+            }
+
             //? Setter le statut de l'utilisateur à true
             $user->setStatusUser(true);
 
             //? Persister et flush les données
             $entityManagerInterface->persist($user);
             $entityManagerInterface->flush();
+
+            return $this->json(
+                ['Success'=> 'The account '.$user->getEmail().' has been activated.'],
+                200, 
+                ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'],
+                []
+            );
 
         } catch (\Exception $error) {
 
