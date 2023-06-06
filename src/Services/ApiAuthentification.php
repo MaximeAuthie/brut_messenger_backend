@@ -32,23 +32,23 @@
 
         }
 
-        public function genNewToken(string $email, string $secretKey, UserRepository $userRepository ):string {
+        public function genNewToken(string $email, string $secretKey, UserRepository $userRepository, int $duration ):string {
 
             //? autolaod composer
             require_once('../vendor/autoload.php');
 
             //? Définition des variable nécessaires à la génération du token
-            $issueDate  = new \DateTimeImmutable(); //Date de génération du token
-            $expireDate = $issueDate->modify('+1 minutes')->getTimestamp(); //Date d'expiration du toke
+            $issueDate  = new \DateTimeImmutable();                             //Date de génération du token
+            $expireDate = $issueDate->modify('+'.$duration.' minutes')->getTimestamp();     //Date d'expiration du token
             $serverName = "localhost";
             $userName   = $userRepository->findOneBy(['email' => $email])->getFirstNameUser().' '.$userRepository->findOneBy(['email' => $email])->getLastNameUser();
 
             //? Renseigner le contenu du token 
             $data = [
                 'iat'       => $issueDate->getTimestamp(),         // Timestamp génération du token
-                'iss'       => $serverName,                       // Serveur
+                'iss'       => $serverName,                        // Serveur
                 'nbf'       => $issueDate->getTimestamp(),         // Timestamp empécher date  (sécurité si quelqu'un récupère la clé de chiffrement)
-                'exp'       => $expireDate,                           // Timestamp expiration du token
+                'exp'       => $expireDate,                        // Timestamp expiration du token
                 'userName'  => $userName,
             ];
 
