@@ -21,13 +21,13 @@ class Messaging {
             $mail->Host       = 'smtp.orange.fr';                       // Set the SMTP server to send through
             $mail->SMTPAuth   = true;                                   // Enable SMTP authentication
             $mail->Username   = $login;                                 // SMTP username
-            $mail->Password   = $password;                                   // SMTP password
+            $mail->Password   = $password;                              // SMTP password
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;            // Enable implicit TLS encryption
-            $mail->Port       = 25;                                     // TCP port to connect to; use 587 if you have set `SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS`
+            $mail->Port       = 465;                                    // TCP port to connect to; use 587 if you have set `SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS`
 
             //Recipients
             $mail->setFrom($login, 'Maxime de Brut Messenger');         // Adresse de l'expéditeur + alias qui apparait dans la boite du destinataire
-            $mail->addAddress($emailAdress, 'Joe User');                   // Adresse mail du destinataire
+            $mail->addAddress($emailAdress, 'Joe User');                // Adresse mail du destinataire
             
 
             //Content
@@ -37,12 +37,12 @@ class Messaging {
             
             //Send the email
             $mail->send();
-            return 'Le mail a bien été envoyé';
+            return 'The mail has been sent';
 
         } catch (Exception $error) {
 
             //Catch error
-            return "Le mail n'a pas pu être envoyé : {$mail->ErrorInfo}";
+            return "The mail could not be sent : {$mail->ErrorInfo}";
         }
     }
 
