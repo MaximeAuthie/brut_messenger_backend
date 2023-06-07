@@ -183,8 +183,9 @@ class UserApiController extends AbstractController {
 
             //? Définition des variables pour utiliser la méthode sendEmail() de la classe Messenging
             $mailObject     = 'Activation de votre compte BRUT MESSENGER';
-            $mailContent    = '<p>Bienvenue dans la communauté BRUT MESSENGER '.$user->getFirstNameUser().' ! </p>'.
-                              '<p>Pour activer ton compte et commencer à utiliser l\'application BRUT MESSENGER sur ton mobile, cliques sur le lien ci-dessous:</p>'.
+            $mailContent    = "<img src='https://www.hebergeur-image.com/upload/46.255.202.187-6480442e69c61.jpg'/>".
+                              "<p>Bienvenue dans la communauté BRUT MESSENGER ".$user->getFirstNameUser()." ! </p>".
+                              "<p>Pour activer ton compte et commencer à utiliser l'application BRUT MESSENGER sur ton mobile, cliques sur le lien ci-dessous:</p>".
                               '<a href = "https://127.0.0.1:8000/api/user/activate/'.$user->getId().'/'.$token.'">Lien d\'activation</a>';
             
 
@@ -207,7 +208,7 @@ class UserApiController extends AbstractController {
                 400, 
                 ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'],
                 []
-                
+
             );
         }
     }
@@ -341,9 +342,10 @@ class UserApiController extends AbstractController {
 
                 //? Définition des variables pour utiliser la méthode sendEmail() de la classe Messenging
                 $mailObject     = 'Activation de votre compte BRUT MESSENGER';
-                $mailContent    = '<p>Bienvenue dans la communauté BRUT MESSENGER '.$user->getFirstNameUser().' ! </p>'.
-                                '<p>Pour activer ton compte et commencer à utiliser l\'application BRUT MESSENGER sur ton mobile, cliques sur le lien ci-dessous:</p>'.
-                                '<a href = "https://127.0.0.1:8000/api/user/activate/'.$user->getId().'/'.$newToken.'">Lien d\'activation</a>';
+                $mailContent    = "<img src='https://www.hebergeur-image.com/upload/46.255.202.187-6480442e69c61.jpg'/>".
+                                  "<p>Bienvenue dans la communauté BRUT MESSENGER ".$user->getFirstNameUser()." ! </p>".
+                                  "<p>Pour activer ton compte et commencer à utiliser l'application BRUT MESSENGER sur ton mobile, cliques sur le lien ci-dessous:</p>".
+                                  '<a href = "https://127.0.0.1:8000/api/user/activate/'.$user->getId().'/'.$token.'">Lien d\'activation</a>';
                
 
                 //? Executer la méthode sendMail() de la classe Messenging
