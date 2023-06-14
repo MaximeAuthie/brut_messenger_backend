@@ -13,7 +13,9 @@ use App\Entity\User;
 use App\Services\Utils;
 use App\Services\Messaging;
 use App\Services\ApiAuthentification;
+use App\Services\Encryption;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+
 
 //! Vérifier le projet SYmfony pour le use et la méthode à ajouter pour le hash du MDP
 
@@ -93,8 +95,11 @@ class UserApiController extends AbstractController {
     }
 
     //! API pour ajouter un utilisateur (inscription)
-    #[ROUTE('api/user/add', name:"app_api_user_add", methods: 'POST')] //! Passer la classe Password pour le hash dans les param
-    public function addUser(UserRepository $userRepository, Request $request, SerializerInterface $serializerInterface, EntityManagerInterface $entityManagerInterface, Messaging $messaging, ApiAuthentification $apiAuthentification):Response {
+    #[ROUTE('api/user/add', name:"app_api_user_add", methods: 'POST')]
+    public function addUser(UserRepository $userRepository, Request $request, SerializerInterface $serializerInterface, EntityManagerInterface $entityManagerInterface, Messaging $messaging, ApiAuthentification $apiAuthentification, Encryption $encryption, UserPasswordHasherInterface $userPasswordHasherInterface):Response {
+        
+        require_once('../vendor/autoload.php');
+        
         try {
             //? Récupérer le contenu de la requête en provenance du front
             $json = $request->getContent();
@@ -117,16 +122,17 @@ class UserApiController extends AbstractController {
                 return $this->json(
                     ['Error' => 'The date '.$data['birthday'].' is not a valid date.'],
                     400,
-                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
+                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'], 
                     [] );
             }
 
             //? Vérifier si le format de l'adresse mail est valide
             if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+            
                 return $this->json(
                     ['Error' => 'The email adress '.$data['email'].' is not a valid email adress.'],
-                    400,
-                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
+                    422,
+                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'], 
                     [] );
             }
 
@@ -144,15 +150,21 @@ class UserApiController extends AbstractController {
             }
 
             //? Nettoyer les données envoyées par l'API
-            $firstName  = Utils::cleanInput($data['firstName']);
-            $lastName   = Utils::cleanInput($data['lastName']);
-            $birthday   = Utils::cleanInput($data['birthday']);
-            $email      = Utils::cleanInput($data['email']);
-            $password   = Utils::cleanInput($data['password']);
-            $nickname   = Utils::cleanInput($data['firstName']).' '.Utils::cleanInput($data['lastName']);
+            $firstName      = Utils::cleanInput($data['firstName']);
+            $lastName       = Utils::cleanInput($data['lastName']);
+            $birthday       = Utils::cleanInput($data['birthday']);
+            $email          = Utils::cleanInput($data['email']);
+            $password       = Utils::cleanInput($data['password']);
+            $nickname       = Utils::cleanInput($data['firstName']).' '.Utils::cleanInput($data['lastName']);
+            $publicKey      = Utils::cleanInput($data['publicKey']);
+            $privateKey     = Utils::cleanInput($data['privateKey']);
 
-            //? Hasher le password
-            $hashedPassword = password_hash($password, PASSWORD_DEFAULT); //! utiliseer hashPassword(objet user, variable MDP)
+            //? Récupérer la clé de chiffrement
+            $encryptionKey = $this->getParameter('encryptionKey');
+            
+            //? Chiffrer le couple de clés avec la méthode encrypt() du service Encryption
+            $encryptedPublicKey = $encryption->encrypt($publicKey, $encryptionKey);
+            $encryptedPrivateKey = $encryption->encrypt($privateKey, $encryptionKey);
 
             //? Instancier un objet User et on 'setter' toutes ses propriétés
             $user = new User;
@@ -160,14 +172,14 @@ class UserApiController extends AbstractController {
             $user->setLastNameUser($lastName);
             $user->setBirthdayUser(new \DateTimeImmutable($birthday));
             $user->setEmail($email);
-            $user->setPassword($hashedPassword);
+            $user->setPassword($userPasswordHasherInterface->hashPassword($user, $password));
             $user->setNicknameUser($nickname);
-            $user->setRoles(['USER']);
+            $user->setRoles(['ROLE_USER']);
             $user->setAvatarUrlUser('./public/asset/images/default-avatar.svg');
             $user->setStatusUser(false);
             $user->setFontSizeUser('medium');
-            $user->setPublicKeyUser('1111111111');
-            $user->setPrivateKeyUser('2222222222');
+            $user->setPublicKeyUser($encryptedPublicKey);
+            $user->setPrivateKeyUser($encryptedPrivateKey);
 
             //? Persister et flush les données de l'instance $user pour l'insérer en BDD
             $entityManagerInterface->persist($user);
@@ -177,13 +189,13 @@ class UserApiController extends AbstractController {
             $mailLogin      = $this->getParameter('mailaccount');
             $mailPassword   = $this->getParameter('mailpassword');
 
-            //? Récupérer la clé secrète pour générer un token
+            //? Récupérer la clé secrète pour générer un token avec la méthode genNewToken() du service ApiAuthentification
             $secretkey      = $this->getParameter('token');
-            $token          = $apiAuthentification->genNewToken($user->getEmail(), $secretkey, $userRepository, 10);
+            $token          = $apiAuthentification->genNewToken($user->getEmail(), $secretkey, $userRepository, 1);
 
             //? Définition des variables pour utiliser la méthode sendEmail() de la classe Messenging
             $mailObject     = 'Activation de votre compte BRUT MESSENGER';
-            $mailContent    = "<img src='https://www.hebergeur-image.com/upload/46.255.202.187-6480442e69c61.jpg'/>".
+            $mailContent    = "<img src='https://i.postimg.cc/yNYjCGST/logo-long.jpg'/>".
                               "<p>Bienvenue dans la communauté BRUT MESSENGER ".$user->getFirstNameUser()." ! </p>".
                               "<p>Pour activer ton compte et commencer à utiliser l'application BRUT MESSENGER sur ton mobile, cliques sur le lien ci-dessous:</p>".
                               '<a href = "https://127.0.0.1:8000/api/user/activate/'.$user->getId().'/'.$token.'">Lien d\'activation</a>';
@@ -191,7 +203,7 @@ class UserApiController extends AbstractController {
 
             //? Executer la méthode sendMail() de la classe Messenging
             $mailStatus = $messaging->sendEmail($mailLogin, $mailPassword, $user->getEmail(), $mailObject, $mailContent);
-            
+          
             //? Retourner un json pour avertir que l'enregistrement a réussit
             return $this->json(
                 ['Success'=> 'The account '.$user->getEmail().' has been added to the database.'],
@@ -200,9 +212,10 @@ class UserApiController extends AbstractController {
                 []
             );
 
+        //? En cas d'erreur inattendue, capter l'erreur rencontrée
         } catch (\Exception $error) {
 
-            //? Retourner un json pour détailler l'erreur rencontrée
+            //? Retourner un json pour détailler l'erreur inattendue
             return $this->json(
                 ['Error'=> 'Json state : '.$error->getMessage()],
                 400, 
@@ -226,7 +239,7 @@ class UserApiController extends AbstractController {
                 return $this->json(
                     ['Error' => 'The json is empty or does not exist.'],
                     400,
-                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
+                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'], 
                     []
                 );
             }
@@ -246,7 +259,7 @@ class UserApiController extends AbstractController {
                 return $this->json(
                     ['Error' => 'One of the data is empty'],
                     400,
-                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
+                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'], 
                     []
                 );
             }
@@ -256,7 +269,7 @@ class UserApiController extends AbstractController {
                 return $this->json(
                     ['Error' => 'Invalid e-mail address format'],
                     400,
-                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
+                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'], 
                     []
                 );
             }
@@ -270,14 +283,14 @@ class UserApiController extends AbstractController {
                 return $this->json(
                     $token, 
                     200, 
-                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], //renvoie du json, uniquement depuis local host, et uniquelent sous forme de GET
+                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'], //renvoie du json, uniquement depuis local host, et uniquelent sous forme de GET
                     ['groups' => 'user:getUserById']
                 );
             } else {
                 return $this->json(
                     ['Error' => 'Wrong email or password'],
                     401,
-                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
+                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'], 
                     []
                 );
             }
@@ -288,7 +301,7 @@ class UserApiController extends AbstractController {
             return $this->json(
                 ['Error' =>$error->getMessage()],
                 400,
-                ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
+                ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'], 
                 []
             );
         }
@@ -300,30 +313,29 @@ class UserApiController extends AbstractController {
 
         try {
 
-            //? Récupérer l'id de l'utilisateur
-            $user = $userRepository->find($id);
+            //? Nettoyer les données
+            $id = Utils::cleanInput($id);
+            $token = Utils::cleanInput($token);
 
             //? Vérifier si l'utilisateur existe
+            $user = $userRepository->find($id);
+
             if (!$user) {
                 return $this->json(
                     ['Error' => 'This user does not exist in the database.'],
                     400,
-                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
+                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'], 
                     []
                 );
             }
 
             //? Vérifier si l'utilisateur n'est pas déjà activé
             if ($user->isStatusUser()) {
-                return $this->json(
-                    ['Error' => 'This user account is already activated.'],
-                    400,
-                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
-                    []
-                );
+                //? Rediriger vers le front en passant le code '206' en paramètre (Partial Content)
+                return $this->redirect('http://localhost:8080/account-activation/206');
             }
 
-            //? Récupérer la secret key pour générer un token
+            //? Récupérer la secret key pour vérifier la validité du token avec la méthode verifyToken() du service ApiAuthentification
             $secretkey = $this->getParameter('token');
 
             //? Appeller la méthode verifyToken() de ApiAuthentification
@@ -336,38 +348,30 @@ class UserApiController extends AbstractController {
                 $mailLogin      = $this->getParameter('mailaccount');
                 $mailPassword   = $this->getParameter('mailpassword');
 
-                //? Récupérer la clé secrète pour générer un token
+                //? Récupérer la clé secrète pour générer un token avec la méthode $genNewToken du service ApiAuthentification
                 $secretkey      = $this->getParameter('token');
                 $newToken       = $apiAuthentification->genNewToken($user->getEmail(), $secretkey, $userRepository, 10);
 
                 //? Définition des variables pour utiliser la méthode sendEmail() de la classe Messenging
                 $mailObject     = 'Activation de votre compte BRUT MESSENGER';
-                $mailContent    = "<img src='https://www.hebergeur-image.com/upload/46.255.202.187-6480442e69c61.jpg'/>".
+                $mailContent    = "<img src='https://i.postimg.cc/yNYjCGST/logo-long.jpg'/>".
                                   "<p>Bienvenue dans la communauté BRUT MESSENGER ".$user->getFirstNameUser()." ! </p>".
                                   "<p>Pour activer ton compte et commencer à utiliser l'application BRUT MESSENGER sur ton mobile, cliques sur le lien ci-dessous:</p>".
-                                  '<a href = "https://127.0.0.1:8000/api/user/activate/'.$user->getId().'/'.$token.'">Lien d\'activation</a>';
+                                  '<a href = "https://127.0.0.1:8000/api/user/activate/'.$user->getId().'/'.$newToken.'">Lien d\'activation</a>';
                
 
                 //? Executer la méthode sendMail() de la classe Messenging
                 $mailStatus = $messaging->sendEmail($mailLogin, $mailPassword, $user->getEmail(), $mailObject, $mailContent);
             
-                //? Retourner un json pour avertir que l'enregistrement a réussit
-                return $this->json(
-                    ['Error'=> 'Expirated token : a new confirmation email has been send.'],
-                    400, 
-                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'],
-                    []
-                );
+                //? Rediriger vers le front en passant le code '419' en paramètre (Expired Token)
+                return $this->redirect('http://localhost:8080/account-activation/419');
             }
+
             //? Si la méthode verifyToken() retourne autre chose que true (une erreur)
             if ($checkToken !== true) {
-                dd($checkToken);
-                return $this->json(
-                    ['Error' => $checkToken],
-                    400, 
-                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
-                    []
-                );  
+
+                //? Rediriger vers le front en passant le code '498' en paramètre (Invalid Token)
+                return $this->redirect('http://localhost:8080/account-activation/498');  
             }
 
             //? Setter le statut de l'utilisateur à true
@@ -377,22 +381,14 @@ class UserApiController extends AbstractController {
             $entityManagerInterface->persist($user);
             $entityManagerInterface->flush();
 
-            return $this->json(
-                ['Success'=> 'The account '.$user->getEmail().' has been activated.'],
-                200, 
-                ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'],
-                []
-            );
-
+            //? Rediriger vers le front en passant le code '200' en paramètre (OK)
+            return $this->redirect('http://localhost:8080/account-activation/200');
+        
+        //? En cas d'erreur inattendue, capterl'erreur rencontrée
         } catch (\Exception $error) {
 
-            //? En cas d'erreur, on lève l'exception et on retourne un json d'erreur
-            return $this->json(
-                ['Error' =>$error->getMessage()],
-                400,
-                ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
-                []
-            );
+            //? Rediriger vers le front en passant le code '400' en paramètre (bad request)
+            return $this->redirect('http://localhost:8080/account-activation/400');
         }
     }
 }
