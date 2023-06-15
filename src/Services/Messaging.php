@@ -16,14 +16,14 @@ class Messaging {
 
         try {
             //Server settings
-            $mail->SMTPDebug =0;                                        // Enable verbose debug output : permet de gérer le debogage -> mettre à 0 pour désactiver
-            $mail->isSMTP();                                            // Send using SMTP : pour dire qu'on utilise un server SMTP
-            $mail->Host       = 'smtp.orange.fr';                       // Set the SMTP server to send through
-            $mail->SMTPAuth   = true;                                   // Enable SMTP authentication
-            $mail->Username   = $login;                                 // SMTP username
-            $mail->Password   = $password;                              // SMTP password
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;            // Enable implicit TLS encryption
-            $mail->Port       = 465;                                    // TCP port to connect to; use 587 if you have set `SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS`
+            $mail->SMTPDebug  =0;                                       // Enable verbose debug output : permet de gérer le debogage -> mettre à 0 pour désactiver
+            $mail->isSMTP();                                              // Send using SMTP : pour dire qu'on utilise un server SMTP
+            $mail->Host        = 'ssl0.ovh.net';                       // Set the SMTP server to send through
+            $mail->SMTPAuth    = true;                                   // Enable SMTP authentication
+            $mail->Username    = $login;                                 // SMTP username
+            $mail->Password    = $password;                              // SMTP password
+            $mail->SMTPSecure  = PHPMailer::ENCRYPTION_SMTPS;            // Enable implicit TLS encryption
+            $mail->Port        = 465;                                    // TCP port to connect to; use 587 if you have set `SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS`
 
             //Recipients
             $mail->setFrom($login, 'Maxime de Brut Messenger');         // Adresse de l'expéditeur + alias qui apparait dans la boite du destinataire
