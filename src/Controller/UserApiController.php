@@ -33,7 +33,7 @@ class UserApiController extends AbstractController {
                 return $this->json(
                     ['Error' => 'The json is empty or does not exist.'],
                     400,
-                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
+                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'], 
                     []
                 );
             }
@@ -57,7 +57,7 @@ class UserApiController extends AbstractController {
                 return $this->json(
                     ['Error' => $checkToken],
                     400, 
-                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
+                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'], 
                     []
                 );  
             }
@@ -70,7 +70,7 @@ class UserApiController extends AbstractController {
                 return $this->json(
                     ['Error' => 'This user does not exist in the database.'],
                     206, 
-                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
+                    ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'], 
                     []
                 );
             }
@@ -78,7 +78,7 @@ class UserApiController extends AbstractController {
             return $this->json(
                 $user, 
                 200, 
-                ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], //renvoie du json, uniquement depuis local host, et uniquelent sous forme de GET
+                ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'], //renvoie du json, uniquement depuis local host, et uniquelent sous forme de GET
                 ['groups' => 'user:getUserById']
             );
 
@@ -88,7 +88,7 @@ class UserApiController extends AbstractController {
             return $this->json(
                 ['Error' => $error->getMessage()],
                 400, 
-                ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'localhost', 'Access-Control-Allow-Method' => 'GET'], 
+                ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'], 
                 []
             );
         }
@@ -116,6 +116,16 @@ class UserApiController extends AbstractController {
 
             //? Serializer le json pour le transformer en taleau
             $data = $serializerInterface->decode($json, 'json');
+
+            //? Nettoyer les données envoyées par l'API
+            $firstName      = Utils::cleanInput($data['firstName']);
+            $lastName       = Utils::cleanInput($data['lastName']);
+            $birthday       = Utils::cleanInput($data['birthday']);
+            $email          = Utils::cleanInput($data['email']);
+            $password       = Utils::cleanInput($data['password']);
+            $nickname       = Utils::cleanInput($data['firstName']).' '.Utils::cleanInput($data['lastName']);
+            $publicKey      = Utils::cleanInput($data['publicKey']);
+            $privateKey     = Utils::cleanInput($data['privateKey']);
 
             //? Vérifier si la date est valide
             if (!Utils::isValidDate($data['birthday'])) {
@@ -149,16 +159,6 @@ class UserApiController extends AbstractController {
                     [] 
                 );
             }
-
-            //? Nettoyer les données envoyées par l'API
-            $firstName      = Utils::cleanInput($data['firstName']);
-            $lastName       = Utils::cleanInput($data['lastName']);
-            $birthday       = Utils::cleanInput($data['birthday']);
-            $email          = Utils::cleanInput($data['email']);
-            $password       = Utils::cleanInput($data['password']);
-            $nickname       = Utils::cleanInput($data['firstName']).' '.Utils::cleanInput($data['lastName']);
-            $publicKey      = Utils::cleanInput($data['publicKey']);
-            $privateKey     = Utils::cleanInput($data['privateKey']);
 
             //? Récupérer la clé de chiffrement
             $encryptionKey = $this->getParameter('encryptionKey');
@@ -203,7 +203,7 @@ class UserApiController extends AbstractController {
             
 
             //? Executer la méthode sendMail() de la classe Messenging
-            $mailStatus = $messaging->sendEmail($mailLogin, $mailPassword, $user->getEmail(), $mailObject, $mailContent);
+            $mailStatus = $messaging->sendEmail($mailLogin, $mailPassword, $user->getEmail(), $mailObject, $mailContent, $user->getFirstNameUser(), $user->getLastNameUser());
             
             //? Vérifier si l'envoi du mail s'est bien passé
             if ($mailStatus != 'The mail has been sent') {
@@ -215,7 +215,7 @@ class UserApiController extends AbstractController {
                 );
             }
 
-            //? Retourner un json pour avertir que l'enregistrement a réussit
+            //? Retourner un json pour avertir que l'enregistrement a réussi
             return $this->json(
                 ['Success'=> 'The account '.$user->getEmail().' has been added to the database.'],
                 200, 
@@ -290,7 +290,7 @@ class UserApiController extends AbstractController {
                                                       '<a href = "https://127.0.0.1:8000/api/user/activate/'.$user->getId().'/'.$newToken.'">Lien d\'activation</a>', 'ISO-8859-1', 'UTF-8');
 
                 //? Executer la méthode sendMail() de la classe Messenging
-                $mailStatus = $messaging->sendEmail($mailLogin, $mailPassword, $user->getEmail(), $mailObject, $mailContent);
+                $mailStatus = $messaging->sendEmail($mailLogin, $mailPassword, $user->getEmail(), $mailObject, $mailContent, $user->getFirstNameUser(), $user->getLastNameUser());
                 
                 //? Vérifier si l'envoi du mail s'est bien passé
                 if ($mailStatus != 'The mail has been sent') {
@@ -326,7 +326,7 @@ class UserApiController extends AbstractController {
         }
     }
 
-    //! API pour récupérer les données utilisateurs à la demande de connexion
+    //! API pour vérifier la demande d'authentification et envoyer un mail de double authentification
     #[ROUTE('api/user/logIn', name:"app_api_user_login", methods: 'GET')]
     public function logInUser(ApiAuthentification $apiAuthentification, UserPasswordHasherInterface $userPasswordHasherInterface,  Request $request, SerializerInterface $serializerInterface, UserRepository $userRepository, Messaging $messaging ):Response {
         
@@ -335,7 +335,7 @@ class UserApiController extends AbstractController {
             //? Récupérer le contenu de la requête en provenance du front
             $json = $request->getContent();
 
-            //? On vérifie que le json n'est pas vide
+            //? Vérifier que le json n'est pas vide
             if (!$json) {
                 return $this->json(
                     ['Error' => 'The json is empty or does not exist.'],
@@ -348,9 +348,9 @@ class UserApiController extends AbstractController {
             //? Serializer le json
             $data = $serializerInterface->decode($json,'json');
 
-            //? Stocker les données du json dans des variables
-            $email      = $data['email'];
-            $password   = $data['password'];
+            //? Nettoyer les données du json et les stocker dans des variables
+            $email      = Utils::cleanInput($data['email']);
+            $password   = Utils::cleanInput($data['password']);
 
             //? Récupérer la clé de chiffrement
             $secretkey = $this->getParameter('token');
@@ -395,24 +395,22 @@ class UserApiController extends AbstractController {
                 $secretkey      = $this->getParameter('token');
                 $token          = $apiAuthentification->genNewToken($email, $secretkey, $userRepository, 3);
                 
-                //? Récupérer les variables d'authentification du webmail
+                //? Récupérer les variables d'authentification du webmail pour utiliser la méthode sendEmail() du service Messaging    
                 $mailLogin      = $this->getParameter('mailaccount');
                 $mailPassword   = $this->getParameter('mailpassword');
-
-                $hour           = date( "H:i:s", time());
             
                 //? Définition des variables pour utiliser la méthode sendEmail() de la classe Messenging
+                $hour           = date( "H:i:s", time());
                 $mailObject     = mb_convert_encoding('BRUT MESSENGER : authentification à double facteur', 'ISO-8859-1', 'UTF-8');
                 $mailContent    = mb_convert_encoding("<img src='https://i.postimg.cc/yNYjCGST/logo-long.jpg'/>".
                                                       "<p>Bonjour ".$user->getFirstNameUser()." ! </p>".
                                                       "<p>Tu as essayé de te connecter à BRUT MESSENGER à ".$hour.". Pour confirmer ton identité et accéder à ton application, cliques sur le lien suivant : </br>".
-                                                      '<a href = "https://127.0.0.1:8000/api/user/activate/'.$user->getId().'/'.$token.'">Lien d\'activation</a>', 'ISO-8859-1', 'UTF-8');
+                                                      '<a href = "https://127.0.0.1:8000/api/user/logIn/'.$user->getId().'/'.$token.'">Lien d\'activation</a>', 'ISO-8859-1', 'UTF-8');
                 
                 //? Executer la méthode sendMail() de la classe Messenging
-                $mailStatus = $messaging->sendEmail($mailLogin, $mailPassword, $user->getEmail(), $mailObject, $mailContent);
+                $mailStatus = $messaging->sendEmail($mailLogin, $mailPassword, $user->getEmail(), $mailObject, $mailContent, $user->getFirstNameUser(), $user->getLastNameUser());
                 
-                // dd($mailStatus, $user->getEmail());
-                //? Vérifier si l'envoi du mail s'est bien passé
+                //? Vérifier si l'envoi du mail à échoué
                 if ($mailStatus != 'The mail has been sent') {
                     return $this->json(
                         ['Error' => 'Unable to send mail'],
@@ -450,5 +448,63 @@ class UserApiController extends AbstractController {
                 []
             );
         }
+    }
+
+    //! API pour vérifier la double authentification et finaliser l'authentification
+    #[ROUTE('api/user/logIn/{id}/{token}', name:"app_api_user_login_validation", methods: 'GET')]
+    public function logInValidation(string $id, string $token, Request $request, SerializerInterface $serializerInterface, UserRepository $userRepository, ApiAuthentification $apiAuthentification):Response {
+        
+        //? Nettoyer les données
+        $id = Utils::cleanInput($id);
+        $token = Utils::cleanInput($token);
+
+        //? Vérifier si l'utilisateur existe
+        $user = $userRepository->find($id);
+
+        if (!$user) {
+            return $this->json(
+                ['Error' => 'This user does not exist in the database.'],
+                400,
+                ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'], 
+                []
+            );
+        }
+
+        //? Récupérer la secret key pour vérifier la validité du token avec la méthode verifyToken() du service ApiAuthentification
+        $secretkey = $this->getParameter('token');
+
+        //? Appeller la méthode verifyToken() de ApiAuthentification
+        $checkToken = $apiAuthentification->verifyToken($token, $secretkey);
+       
+        //? Vérifier si les token est valide 
+        if ($checkToken != "Expired token" && $checkToken!= true) {
+            return $this->json(
+                ['Error' => 'Invalid token'],
+                498,
+                ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'], 
+                []
+            );
+        }
+
+        //? Vérifier si le token est expiré
+        if ($checkToken === "Expired token") {
+            return $this->json(
+                ['Error' => 'Token expired'],
+                419,
+                ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'], 
+                []
+            );
+        }
+
+        //? Récupérer la clé secrète pour générer un token avec la méthode genNewToken() du service ApiAuthentification
+        $secretkey      = $this->getParameter('token');
+        $token          = $apiAuthentification->genNewToken($user->getEmail(), $secretkey, $userRepository, 1);
+
+        return $this->json(
+            $token, 
+            200, 
+            ['Content-Type'=>'application/json','Access-Control-Allow-Origin' =>'*', 'Access-Control-Allow-Method' => 'GET'],
+            ['groups' => 'user:getUserById']
+        );
     }
 }
