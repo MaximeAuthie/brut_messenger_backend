@@ -6,7 +6,7 @@ use PHPMailer\PHPMailer\Exception;
 
 class Messaging {
 
-    public function sendEmail(string $login, string $password, string $emailAdress, string $subject, string $body) {
+    public function sendEmail(string $login, string $password, string $emailAdress, string $subject, string $body, string $contactFirstName, string $contactLastName) {
 
         //Load Composer's autoloader
         require '../vendor/autoload.php';
@@ -16,9 +16,9 @@ class Messaging {
 
         try {
             //Server settings
-            $mail->SMTPDebug  =0;                                       // Enable verbose debug output : permet de gérer le debogage -> mettre à 0 pour désactiver
-            $mail->isSMTP();                                              // Send using SMTP : pour dire qu'on utilise un server SMTP
-            $mail->Host        = 'ssl0.ovh.net';                       // Set the SMTP server to send through
+            $mail->SMTPDebug  =0;                                        // Enable verbose debug output : permet de gérer le debogage -> mettre à 0 pour désactiver
+            $mail->isSMTP();                                             // Send using SMTP : pour dire qu'on utilise un server SMTP
+            $mail->Host        = 'ssl0.ovh.net';                         // Set the SMTP server to send through
             $mail->SMTPAuth    = true;                                   // Enable SMTP authentication
             $mail->Username    = $login;                                 // SMTP username
             $mail->Password    = $password;                              // SMTP password
@@ -26,8 +26,8 @@ class Messaging {
             $mail->Port        = 465;                                    // TCP port to connect to; use 587 if you have set `SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS`
 
             //Recipients
-            $mail->setFrom($login, 'Maxime de Brut Messenger');         // Adresse de l'expéditeur + alias qui apparait dans la boite du destinataire
-            $mail->addAddress($emailAdress, 'Joe User');                // Adresse mail du destinataire
+            $mail->setFrom($login, 'Maxime de Brut Messenger');                             // Adresse de l'expéditeur + alias qui apparait dans la boite du destinataire
+            $mail->addAddress($emailAdress, $contactFirstName.' '.$contactLastName);        // Adresse mail du destinataire
             
 
             //Content
